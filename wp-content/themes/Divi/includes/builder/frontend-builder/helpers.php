@@ -242,7 +242,8 @@ function et_fb_get_dynamic_backend_helpers() {
 		? get_post( get_post_thumbnail_id()->post_title )
 		: false;
 
-	$request_type = $post_type;
+	$request_type  = $post_type;
+	$user_cloud_id = 0;
 
 	// Set request_type on 404 pages.
 	if ( is_404() ) {
@@ -269,6 +270,8 @@ function et_fb_get_dynamic_backend_helpers() {
 		if ( ! empty( $_GET['cloudItem'] ) && get_post_status( $post_id ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- This function does not change any state, and is therefore not susceptible to CSRF.
 			$remote_item_id  = (int) sanitize_text_field( $_GET['cloudItem'] ); // phpcs:ignore WordPress.Security.NonceVerification -- This function does not change any state, and is therefore not susceptible to CSRF.
 			$layout_location = 'cloud';
+
+			$user_cloud_id = isset( $_GET['userCloudId'] ) ? sanitize_text_field( $_GET['userCloudId'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification -- This function does not change any state, and is therefore not susceptible to CSRF.
 		}
 	}
 
@@ -329,6 +332,7 @@ function et_fb_get_dynamic_backend_helpers() {
 		'layoutBuiltFor'               => $layout_built_for,
 		'hasPredefinedContent'         => $has_predefined_content,
 		'remoteItemId'                 => $remote_item_id,
+		'userCloudId'                  => $user_cloud_id,
 		'publishCapability'            => ( is_page() && ! current_user_can( 'publish_pages' ) ) || ( ! is_page() && ! current_user_can( 'publish_posts' ) ) ? 'no_publish' : 'publish',
 		'ajaxUrl'                      => is_ssl() ? admin_url( 'admin-ajax.php' ) : admin_url( 'admin-ajax.php', 'http' ),
 		'et_account'                   => et_core_get_et_account(),
@@ -470,6 +474,14 @@ function et_fb_get_dynamic_backend_helpers() {
 	}
 
 	$helpers['dynamicContentFields'] = et_builder_get_dynamic_content_fields( $post_id, 'edit' );
+
+	$helpers['aiTextFieldEmptyOptions']        = et_builder_get_ai_text_field_empty_options();
+	$helpers['aiImageFieldOptions']            = et_builder_get_ai_text_field_empty_options( true );
+	$helpers['aiTextFieldOptions']             = et_builder_get_ai_text_field_options();
+	$helpers['aiTextOptions']                  = et_builder_get_ai_text_options();
+	$helpers['aiCodeOptions']                  = et_builder_get_ai_code_options();
+	$helpers['aiImageOptions']                 = et_builder_get_ai_image_options();
+	$helpers['aiTextFieldSelectedTextOptions'] = et_builder_get_ai_selected_text_field_options();
 
 	return $helpers;
 }
@@ -864,6 +876,9 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 				'opacity'        => ET_Global_Settings::get_value( 'all_filter_opacity' ),
 				'blur'           => ET_Global_Settings::get_value( 'all_filter_blur' ),
 				'mix_blend_mode' => ET_Global_Settings::get_value( 'all_mix_blend_mode' ),
+			),
+			'et_pb_heading'            => array(
+				'title' => $modules_defaults['title'],
 			),
 		),
 		'saveModuleLibraryCategories'      => et_fb_prepare_library_terms(),
@@ -1927,14 +1942,16 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 				'mapPinAddressInvalid' => esc_html__( 'Invalid Pin and address data. Please try again.', 'et_builder' ),
 			),
 			'tabs'             => array(
-				'general'  => et_builder_i18n( 'Content' ),
-				'design'   => et_builder_i18n( 'Design' ),
-				'advanced' => et_builder_i18n( 'Design' ),
-				'css'      => et_builder_i18n( 'Advanced' ),
-				'desktop'  => et_builder_i18n( 'Desktop' ),
-				'tablet'   => et_builder_i18n( 'Tablet' ),
-				'phone'    => et_builder_i18n( 'Phone' ),
-				'hover'    => esc_html__( 'Hover', 'et_builder' ),
+				'general'        => et_builder_i18n( 'Content' ),
+				'design'         => et_builder_i18n( 'Design' ),
+				'advanced'       => et_builder_i18n( 'Design' ),
+				'css'            => et_builder_i18n( 'Advanced' ),
+				'desktop'        => et_builder_i18n( 'Desktop' ),
+				'tablet'         => et_builder_i18n( 'Tablet' ),
+				'phone'          => et_builder_i18n( 'Phone' ),
+				'hover'          => esc_html__( 'Hover', 'et_builder' ),
+				'moduleElements' => esc_html__( 'Module Elements', 'et_builder' ),
+				'freeFormCSS'    => esc_html__( 'Free-Form CSS', 'et_builder' ),
 			),
 			'additionalButton' => array(
 				'changeApiKey'              => esc_html__( 'Change API Key', 'et_builder' ),
@@ -1964,6 +1981,7 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 			),
 			'cssText'          => esc_html__( 'CSS', 'et_builder' ),
 			'cssSelector'      => esc_html__( 'CSS added here will target the following class:', 'et_builder' ),
+			'cssSelectorFree'  => esc_html__( 'CSS added here can target this element and any sub element using the selector keyword.', 'et_builder' ),
 			'hoverOptions'     => array(
 				'default' => et_builder_i18n( 'Default' ),
 				'hover'   => esc_html__( 'Hover', 'et_builder' ),
@@ -2070,6 +2088,7 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 				'findReplace' => esc_html__( 'Find & Replace Color', 'et_builder' ),
 				'remove'      => esc_html__( 'Remove Gradient Stop', 'et_builder' ),
 			),
+			'generate_content_with_ai'  => esc_html__( 'Generate Content With AI', 'et_builder' ),
 		),
 		'tooltips'                  => array(
 			'insertModule'         => esc_html__( 'Insert Module', 'et_builder' ),
@@ -2111,10 +2130,12 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 			'importButton'         => esc_html__( 'Import Divi Builder Layout', 'et_builder' ),
 			'noFile'               => esc_html__( 'No File Selected', 'et_builder' ),
 			'chooseFile'           => esc_html__( 'Choose File', 'et_builder' ),
+			'chooseFiles'           => esc_html__( 'Choose Files', 'et_builder' ),
 			'portabilityOptions'   => esc_html__( 'Options', 'et_builder' ),
 			'includeGlobalPresets' => esc_html__( 'Include Presets', 'et_builder' ),
 			'applyGlobalPresets'   => esc_html__( 'Apply To Exported Layout', 'et_builder' ),
 			'importContextFail'    => esc_html__( 'This file should not be imported in this context.', 'et_builder' ),
+			'bulkImportContextFail'    => esc_html__( 'These files should not be imported in this context.', 'et_builder' ),
 			'closeWindow'              => esc_html__( 'Close Window', 'et_builder' ),
 			'no'                       => esc_html__( 'No', 'et_builder' ),
 			'yes'                      => esc_html__( 'Yes', 'et_builder' ),
@@ -2157,6 +2178,9 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 					'includeGlobalPresets' => esc_html__( 'Import Presets', 'et_builder' ),
 					'imported'             => esc_html__( 'imported', 'et_builder' ),
 					'ImportToCloud'        => esc_html__( 'Import To Cloud', 'et_builder' ),
+					'selectedFiles'        => esc_html__( 'Selected Files:', 'et_builder' ),
+					'drageFiles'           => esc_html__( 'Drag Files Here', 'et_builder' ),
+					'selectFiles'          => esc_html__( 'Select Files To Import', 'et_builder' ),
 				),
 				'export' => array(
 					'applyGlobalPresets' => esc_html__( 'Apply Presets To Exported Layout' ),
@@ -2166,10 +2190,16 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 			'favoritesRemove'      => esc_html__( 'Remove From Favorites', 'et_builder' ),
 		),
 		'prompts'                   => array(
-			'importWithLabel'   => esc_html__( 'Import Design Presets?', 'et_builder' ),
-			'importWithContent' => esc_html__( 'This layout contains global design presets. Check the box below to import these styles as presets, or leave it unchecked to bring them in as static styles.', 'et_builder' ),
-			'import'            => esc_html__( 'Import', 'et_builder' ),
-			'importPresets'     => esc_html__( 'Import Presets', 'et_builder' ),
+			'importWithLabel'        => esc_html__( 'Import Design Presets?', 'et_builder' ),
+			'importWithContent'      => esc_html__( 'This layout contains global design presets. Check the box below to import these styles as presets, or leave it unchecked to bring them in as static styles.', 'et_builder' ),
+			'import'                 => esc_html__( 'Import', 'et_builder' ),
+			'importPresets'          => esc_html__( 'Import Presets', 'et_builder' ),
+			'close'                  => esc_html__( 'Close', 'et_builder' ),
+			'convertRowtoSection'    => esc_html__( 'Convert Row To Section', 'et_builder' ),
+			'convertModuletoRow'     => esc_html__( 'Convert Module To Row', 'et_builder' ),
+			'convertModuletoSection' => esc_html__( 'Convert Module To Section', 'et_builder' ),
+			'convertToRowMsg'        => esc_html__( 'Conversion completed. Item moved to the Rows library.', 'et_builder' ),
+			'convertToSectionMsg'    => esc_html__( 'Conversion completed. Item moved to the Sections library.', 'et_builder' ),
 		),
 		'saveModuleLibraryAttrs'    => array(
 			'cancel'                 => et_builder_i18n( 'Cancel' ),
@@ -2198,6 +2228,10 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 			'saveText'               => esc_html__( 'Save To Library', 'et_builder' ),
 			'saveToCloudText'        => esc_html__( 'Save To Divi Cloud', 'et_builder' ),
 			'allCategoriesText'      => esc_html__( 'All Categories', 'et_builder' ),
+			'saveIndividual'         => esc_html__( 'Save Individual Items', 'et_builder' ),
+			'saveSectionsIndividual' => esc_html__( 'Also Save All %s Sections as Individual Items', 'et_builder' ),
+			'saveRowsIndividual'     => esc_html__( 'Also Save All %s Rows as Individual Items', 'et_builder' ),
+			'saveModulesIndividual'  => esc_html__( 'Also Save All %s Modules as Individual Items', 'et_builder' ),
 		),
 		'alertModal'                => array(
 			'buttonCancelLabel'  => et_builder_i18n( 'Cancel' ),
@@ -2224,6 +2258,7 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 			'show_only'             => esc_html__( 'Show Only', 'et_builder' ),
 			'filterNotice'          => esc_html__( 'No options exist for this search query. <span>Click here</span> to clear your search filters.', 'et_builder' ),
 			'filterNoticeClickable' => esc_html__( 'Click here', 'et_builder' ),
+			'exploreDiviModules'    => esc_html__( 'Explore More Divi Modules', 'et_builder' ),
 			'extend_styles'         => array(
 				'title'   => esc_html__( 'Extend Styles', 'et_builder' ),
 				'button'  => esc_html__( 'Extend', 'et_builder' ),
@@ -2306,6 +2341,14 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 				),
 				'filterNotice'          => esc_html__( 'No layers exist for this search query. Click here to clear your search filters.', 'et_builder' ),
 				'filterNoticeClickable' => esc_html__( 'Click here', 'et_builder' ),
+			),
+			'moduleElements'        => array(
+				'part1' => esc_html__( 'Target predefined selectors within this element without the need to write out selectors name. i.e.', 'et_builder' ),
+				'part2' => esc_html__( 'instead of', 'et_builder' ),
+			),
+			'freeFormCSS'           => array(
+				'part1' => esc_html__( 'Write free-form css using the keyword', 'et_builder' ),
+				'part2' => esc_html__( 'to target this module i.e.', 'et_builder' ),
 			),
 		),
 		'selectControl'             => array(
@@ -2777,6 +2820,14 @@ function et_fb_get_static_backend_helpers( $post_type ) {
 			),
 			'preset_desktop' => esc_html__( 'Desktop View', 'et_builder' ),
 			'preset_custom'  => esc_html__( 'Custom View', 'et_builder' ),
+		),
+
+		'ai'                        => array(
+			'tooltips' => array(
+				'divi_ai_options' => esc_html__( 'Divi AI Options', 'et_builder' ),
+			),
+			'title'          => esc_html__( 'Title', 'et_builder' ),
+			'excerpt'        => esc_html__( 'Excerpt', 'et_builder' ),
 		),
 	);
 	// phpcs:enable WordPress.Arrays.MultipleStatementAlignment.DoubleArrowNotAligned

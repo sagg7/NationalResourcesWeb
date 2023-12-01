@@ -25,13 +25,13 @@ function et_activate_features() {
 	}
 
 	/* activate shortcodes */
-	require_once TEMPLATEPATH . '/epanel/shortcodes/shortcodes.php';
+	require_once get_template_directory() . '/epanel/shortcodes/shortcodes.php';
 
 	/* activate page templates */
-	require_once TEMPLATEPATH . '/includes/page_templates/page_templates.php';
+	require_once get_template_directory() . '/includes/page_templates/page_templates.php';
 
 	/* import epanel settings */
-	require_once TEMPLATEPATH . '/includes/import_settings.php';
+	require_once get_template_directory() . '/includes/import_settings.php';
 }
 
 add_filter( 'widget_text', 'do_shortcode' );
@@ -1338,6 +1338,11 @@ if ( ! function_exists( 'elegant_keywords' ) ) {
 if ( ! function_exists( 'elegant_canonical' ) ) {
 
 	function elegant_canonical() {
+		// Don't use ePanel SEO if 'rel_canonical' is registered for `wp_head`.
+		if ( has_action( 'embed_head', 'rel_canonical' ) && is_singular() ) {
+			return;
+		}
+
 		// Don't use ePanel SEO if a SEO plugin is active.
 		if ( et_is_seo_plugin_active() ) {
 			return;
